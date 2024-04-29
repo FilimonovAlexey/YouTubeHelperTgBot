@@ -23,11 +23,17 @@ bot.hears('Социальные сети', async (ctx) => {
   // Создаем инлайновую клавиатуру
   const socialKeyboard = new InlineKeyboard()
     .text('YouTube', 'YouTube')
+    .row()
     .text('Telegram', 'Telegram')
+    .row()
     .text('Vk', 'Vk')
+    .row()
     .text('ДЗЕН', 'ДЗЕН')
+    .row()
     .text('TikTok', 'TikTok')
+    .row()
     .text('X', 'X')
+    .row()
     .text('Instagram', 'Instagram')
 
   // Отправляем клавиатуру в ответе на сообщение
@@ -79,6 +85,7 @@ bot.hears('Промокоды и скидки', async (ctx) => {
   // Создаем инлайновую клавиатуру
   const promoKeyboard = new InlineKeyboard()
     .text('Хостинг сервера', 'Хостинг сервера')
+    .row()
     .text('Яндекс практикум', 'Яндекс практикум')
 
   // Отправляем клавиатуру в ответе на сообщение
