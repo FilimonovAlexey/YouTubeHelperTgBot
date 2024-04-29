@@ -100,7 +100,6 @@ bot.on('message:text', async (ctx) => {
   await ctx.forwardMessage(authorId, { text: message });
 });
 
-
 //Команды бота и их описание
 bot.api.setMyCommands([
   {
