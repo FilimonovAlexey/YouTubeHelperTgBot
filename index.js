@@ -75,6 +75,32 @@ bot.on('callback_query:data', async (ctx) => {
   }
 });
 
+bot.hears('Промокоды и скидки', async (ctx) => {
+  // Создаем инлайновую клавиатуру
+  const promoKeyboard = new InlineKeyboard()
+    .text('Хостинг сервера', 'Хостинг сервера')
+    .text('Яндекс практикум', 'Яндекс практикум')
+
+  // Отправляем клавиатуру в ответе на сообщение
+  await ctx.reply('Выберите категорию:', {
+    reply_markup: promoKeyboard,
+  });
+});
+
+bot.hears('Предложка', async (ctx) => {
+  await ctx.reply('Опишите ваше предложение или сообщение, которое вы хотели бы отправить автору бота.');
+});
+
+// Обработчик всех текстовых сообщений, чтобы пересылать сообщения от пользователя автору бота
+bot.on('message:text', async (ctx) => {
+  const authorId = process.env.ADMIN_TELEGRAM_ID;
+  const message = ctx.message.text;
+
+  // Пересылаем сообщение от пользователя автору бота
+  await ctx.forwardMessage(authorId, { text: message });
+});
+
+
 //Команды бота и их описание
 bot.api.setMyCommands([
   {
