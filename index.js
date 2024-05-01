@@ -65,7 +65,7 @@ bot.on('callback_query', async (ctx) => {
     // Отправляем сообщение для категории "Промокоды и скидки"
     switch (query) {
       case 'hosting':
-        message = 'Вот ссылка на хостинг сервера: https://example.com/hosting';
+        message = 'Вот ссылка на хостинг сервера: https://timeweb.cloud/?i=108133';
         break;
       case 'yandex':
         message = 'Вот ссылка на Яндекс практикум: https://example.com/yandex';
