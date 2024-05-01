@@ -174,9 +174,6 @@ bot.hears('Промокоды и скидки', async (ctx) => {
 // Обработка нажатий на кнопки промокодов и скидок
 handleButtonClicks(promoCodes);
 
-
-
-
 // Флаг для отслеживания нажатия на кнопку "Предложка" и пользователя, который ее нажал
 let suggestionClicked = {};
 
@@ -208,13 +205,15 @@ bot.on('message:text', async (ctx) => {
   }
 });
 
-
-
 //Команды бота и их описание
 bot.api.setMyCommands([
   {
     command:'start', 
     description: 'Старт бота',
+  },
+  {
+    command:'admin', 
+    description: 'Статистика по использованию бота',
   },
 ]);
 
