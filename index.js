@@ -116,7 +116,7 @@ function createKeyboard(buttons) {
 }
 
 // Функция для обработки нажатий на кнопки
-function handleButtonClicks(ctx, items) {
+function handleButtonClicks(items) {
   items.forEach(item => {
     bot.hears(item.name, async (ctx) => {
       const message = `Вот ссылка на ${item.name}: ${item.url}`;
@@ -125,13 +125,11 @@ function handleButtonClicks(ctx, items) {
   });
 }
 
-// Обработчик команды "Социальные сети"
 bot.hears('Социальные сети', async (ctx) => {
   const socialKeyboard = createKeyboard(socialNetworks);
   await ctx.reply('Выберите социальную сеть:', {
     reply_markup: socialKeyboard,
   });
-  handleButtonClicks(ctx, socialNetworks);
 });
 
 // Обработчик команды "Промокоды и скидки"
@@ -140,7 +138,6 @@ bot.hears('Промокоды и скидки', async (ctx) => {
   await ctx.reply('Выберите категорию промокодов и скидок:', {
     reply_markup: promoKeyboard,
   });
-  handleButtonClicks(ctx, promoCodes);
 });
 
 // Обработчик команды "Назад"
@@ -164,13 +161,8 @@ bot.hears('Социальные сети', async (ctx) => {
   });
 });
 
-// Обработка нажатий на кнопки
-socialNetworks.forEach(network => {
-  bot.hears(network.name, async (ctx) => {
-    const message = `Вот ссылка на ${network.name}: ${network.url}`;
-    await ctx.reply(message);
-  });
-});
+// Обработка нажатий на кнопки социальных сетей
+handleButtonClicks(socialNetworks);
 
 // Отправляем сообщение с клавиатурой
 bot.hears('Промокоды и скидки', async (ctx) => {
@@ -179,13 +171,11 @@ bot.hears('Промокоды и скидки', async (ctx) => {
   });
 });
 
-// Обработка нажатий на кнопки
-promoCodes.forEach(promo => {
-  bot.hears(promo.name, async (ctx) => {
-    const message = `Вот ссылка на ${promo.name}: ${promo.url}`;
-    await ctx.reply(message);
-  });
-});
+// Обработка нажатий на кнопки промокодов и скидок
+handleButtonClicks(promoCodes);
+
+
+
 
 bot.hears('Предложка', async (ctx) => {
   await ctx.reply('Опишите ваше предложение или сообщение, которое вы хотели бы отправить автору бота.');
