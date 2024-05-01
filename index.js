@@ -1,9 +1,42 @@
 require('dotenv').config();
 const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard } = require('grammy');
+const fs = require('fs');
 
 const bot = new Bot(process.env.BOT_API_KEY);
 
+// Файл, в котором будут храниться данные о пользователях
+const userDataFile = 'userData.json';
+
+// Проверяем существование файла userData.json и создаем его, если он не существует
+if (!fs.existsSync(userDataFile)) {
+  fs.writeFileSync(userDataFile, '{}');
+}
+
+// Функция для обновления данных о пользователе
+function updateUserData(userId) {
+  let userData = JSON.parse(fs.readFileSync(userDataFile));
+  if (!userData[userId]) {
+    userData[userId] = {
+      timesStarted: 0,
+    };
+  }
+  userData[userId].timesStarted++;
+  fs.writeFileSync(userDataFile, JSON.stringify(userData, null, 2));
+}
+
+// Функция для проверки, является ли пользователь администратором
+function isAdmin(userId) {
+  return userId.toString() === process.env.ADMIN_ID;
+}
+
+let userData = JSON.parse(fs.readFileSync(userDataFile));
+
 bot.command('start', async (ctx) => {
+  // Проверяем, запускает ли пользователь бот впервые
+  if (!userData[ctx.from.id]) {
+  // Если пользователь запускает бот впервые, обновляем данные о пользователе
+    updateUserData(ctx.from.id);
+  }
   const startKeyboard = new Keyboard()
     .text('Социальные сети')
     .row()
@@ -17,6 +50,22 @@ bot.command('start', async (ctx) => {
   await ctx.reply('С чего начнем? Выбирай 👇', {
     reply_markup: startKeyboard,
   });
+});
+
+// Обработка команды администратора
+bot.command('admin', async (ctx) => {
+  // Проверяем, является ли пользователь администратором
+  if (isAdmin(ctx.from.id)) {
+    // Если пользователь администратор, отправляем статистику использования бота
+    let userData = JSON.parse(fs.readFileSync(userDataFile));
+    let totalStarts = 0;
+    for (const userId in userData) {
+      totalStarts += userData[userId].timesStarted;
+    }
+    await ctx.reply(`Статистика использования бота:\nВсего запусков: ${totalStarts}`);
+  } else {
+    await ctx.reply('У вас нет прав администратора!');
+  }
 });
 
 bot.hears('Социальные сети', async (ctx) => {
@@ -172,7 +221,7 @@ bot.hears('Предложка', async (ctx) => {
 
 // Обработчик всех текстовых сообщений, чтобы пересылать сообщения от пользователя автору бота
 bot.on('message:text', async (ctx) => {
-  const authorId = process.env.ADMIN_TELEGRAM_ID;
+  const authorId = process.env.ADMIN_ID;
   const message = ctx.message.text;
 
   // Пересылаем сообщение от пользователя автору бота
