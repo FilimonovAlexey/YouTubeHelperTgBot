@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard } = require('grammy');
 const fs = require('fs');
+const winston = require('winston');
 const { updateUserData, isAdmin, createKeyboard } = require('./utils/helpers');
 const { socialNetworks, promoCodes } = require('./utils/buttons');
 
@@ -155,18 +156,27 @@ bot.api.setMyCommands([
   },
 ]);
 
+const logger = winston.createLogger({
+  level: 'info', // Уровень логирования
+  format: winston.format.json(), // Формат логов
+  transports: [
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }), // Логирование ошибок в файл error.log
+    new winston.transports.File({ filename: 'logs/combined.log' }) // Общее логирование в файл combined.log
+  ]
+});
+
 //Обработчик ошибок
 bot.catch((err) => {
   const ctx = err.ctx;
-  console.error(`Error while handling update ${ctx.update.update_id}:`);
+  logger.error(`Error while handling update ${ctx.update.update_id}:`);
   const e = err.error;
 
   if (e instanceof GrammyError) {
-    console.error("Error in request:", e.description);
+    logger.error("Error in request:", e.description);
   } else if (e instanceof HttpError) {
-    console.error("Could not contact Telegram:", e);
+    logger.error("Could not contact Telegram:", e);
   } else {
-    console.error("Unknown error:", e);
+    logger.error("Unknown error:", e);
   }
   });
 
