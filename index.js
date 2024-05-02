@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard } = require('grammy');
 const fs = require('fs');
+const { updateUserData, isAdmin } = require('./utils/helpers');
 
 const bot = new Bot(process.env.BOT_API_KEY);
 
@@ -12,30 +13,13 @@ if (!fs.existsSync(userDataFile)) {
   fs.writeFileSync(userDataFile, '{}');
 }
 
-// Функция для обновления данных о пользователе
-function updateUserData(userId) {
-  let userData = JSON.parse(fs.readFileSync(userDataFile));
-  if (!userData[userId]) {
-    userData[userId] = {
-      timesStarted: 0,
-    };
-  }
-  userData[userId].timesStarted++;
-  fs.writeFileSync(userDataFile, JSON.stringify(userData, null, 2));
-}
-
-// Функция для проверки, является ли пользователь администратором
-function isAdmin(userId) {
-  return userId.toString() === process.env.ADMIN_ID;
-}
-
 let userData = JSON.parse(fs.readFileSync(userDataFile));
 
 bot.command('start', async (ctx) => {
   // Проверяем, запускает ли пользователь бот впервые
   if (!userData[ctx.from.id]) {
-  // Если пользователь запускает бот впервые, обновляем данные о пользователе
-    updateUserData(ctx.from.id);
+    // Если пользователь запускает бот впервые, обновляем данные о пользователе
+    updateUserData(userDataFile, ctx.from.id);
   }
   const startKeyboard = new Keyboard()
     .text('Социальные сети')
@@ -55,9 +39,8 @@ bot.command('start', async (ctx) => {
 // Обработка команды администратора
 bot.command('admin', async (ctx) => {
   // Проверяем, является ли пользователь администратором
-  if (isAdmin(ctx.from.id)) {
+  if (isAdmin(ctx.from.id, process.env.ADMIN_ID)) {
     // Если пользователь администратор, отправляем статистику использования бота
-    let userData = JSON.parse(fs.readFileSync(userDataFile));
     let totalStarts = 0;
     for (const userId in userData) {
       totalStarts += userData[userId].timesStarted;
