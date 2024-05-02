@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard } = require('grammy');
 const fs = require('fs');
-const winston = require('winston');
+const { logger } = require('./utils/logger');
 const { updateUserData, isAdmin, createKeyboard } = require('./utils/helpers');
 const { socialNetworks, promoCodes } = require('./utils/buttons');
 
@@ -155,15 +155,6 @@ bot.api.setMyCommands([
     description: 'Статистика по использованию бота',
   },
 ]);
-
-const logger = winston.createLogger({
-  level: 'info', // Уровень логирования
-  format: winston.format.json(), // Формат логов
-  transports: [
-    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }), // Логирование ошибок в файл error.log
-    new winston.transports.File({ filename: 'logs/combined.log' }) // Общее логирование в файл combined.log
-  ]
-});
 
 //Обработчик ошибок
 bot.catch((err) => {
