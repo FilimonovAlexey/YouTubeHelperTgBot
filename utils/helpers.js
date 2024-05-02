@@ -45,7 +45,7 @@ function createKeyboard(buttons) {
   }
   
   // Добавляем кнопку "Назад"
-  keyboard.text('Назад');
+  keyboard.text('Назад ↩️');
   
   return keyboard;
 }

@@ -79,7 +79,7 @@ bot.hears('Промокоды и скидки', async (ctx) => {
 });
 
 // Обработчик команды "Назад"
-bot.hears('Назад', async (ctx) => {
+bot.hears('Назад ↩️', async (ctx) => {
   const startKeyboard = new Keyboard()
     .text('Социальные сети')
     .row()
