@@ -4,6 +4,7 @@ const fs = require('fs');
 const { updateUserData, isAdmin, createKeyboard } = require('./utils/helpers');
 const { socialNetworks, promoCodes } = require('./utils/buttons');
 
+// Создание экземпляра бота
 const bot = new Bot(process.env.BOT_API_KEY);
 
 // Файл, в котором будут храниться данные о пользователях
@@ -91,6 +92,12 @@ bot.hears('Назад', async (ctx) => {
   });
 });
 
+// Обработка нажатий на кнопки социальных сетей
+handleButtonClicks(socialNetworks);
+
+// Обработка нажатий на кнопки промокодов и скидок
+handleButtonClicks(promoCodes);
+
 // Отправляем сообщение с клавиатурой
 bot.hears('Социальные сети', async (ctx) => {
   await ctx.reply('Выберите социальную сеть:', {
@@ -98,18 +105,12 @@ bot.hears('Социальные сети', async (ctx) => {
   });
 });
 
-// Обработка нажатий на кнопки социальных сетей
-handleButtonClicks(socialNetworks);
-
 // Отправляем сообщение с клавиатурой
 bot.hears('Промокоды и скидки', async (ctx) => {
   await ctx.reply('Выберите категорию:', {
     reply_markup: promoKeyboard,
   });
 });
-
-// Обработка нажатий на кнопки промокодов и скидок
-handleButtonClicks(promoCodes);
 
 // Флаг для отслеживания нажатия на кнопку "Предложка" и пользователя, который ее нажал
 let suggestionClicked = {};
