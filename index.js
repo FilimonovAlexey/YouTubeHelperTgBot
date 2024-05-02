@@ -58,11 +58,23 @@ bot.command('admin', async (ctx) => {
 function handleButtonClicks(items) {
   items.forEach(item => {
     bot.hears(item.name, async (ctx) => {
-      const message = `Вот ссылка на ${item.name}: ${item.url}`;
-      await ctx.reply(message);
+      let message = '';
+      let keyboard = null;
+      
+      if (item.type === 'social') {
+        message = `Вот ссылка на ${item.name}: ${item.url}`;
+      } else if (item.type === 'promo') {
+        const boldCode = `<b>${item.code}</b>`;
+        message = `Вот ссылка на ${item.name}: ${item.url}\n\nПромокод: ${boldCode}\n\nОписание: ${item.description}`;
+        keyboard = new InlineKeyboard().text('Скопировать промокод');
+      }
+      
+      await ctx.reply(message, { parse_mode: 'HTML', reply_markup: keyboard });
     });
   });
 }
+
+
 
 bot.hears('Социальные сети', async (ctx) => {
   const socialKeyboard = createKeyboard(socialNetworks);
@@ -159,15 +171,15 @@ bot.api.setMyCommands([
 //Обработчик ошибок
 bot.catch((err) => {
   const ctx = err.ctx;
-  logger.error(`Error while handling update ${ctx.update.update_id}:`);
+  console.error(`Error while handling update ${ctx.update.update_id}:`);
   const e = err.error;
 
   if (e instanceof GrammyError) {
-    logger.error("Error in request:", e.description);
+    console.error("Error in request:", e.description);
   } else if (e instanceof HttpError) {
-    logger.error("Could not contact Telegram:", e);
+    console.error("Could not contact Telegram:", e);
   } else {
-    logger.error("Unknown error:", e);
+    console.error("Unknown error:", e);
   }
   });
 
