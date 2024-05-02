@@ -57,24 +57,17 @@ bot.command('admin', async (ctx) => {
 // Функция для обработки нажатий на кнопки
 function handleButtonClicks(items) {
   items.forEach(item => {
-    bot.hears(item.name, async (ctx) => {
-      let message = '';
-      let keyboard = null;
-      
-      if (item.type === 'social') {
-        message = `Вот ссылка на ${item.name}: ${item.url}`;
-      } else if (item.type === 'promo') {
-        const boldCode = `<b>${item.code}</b>`;
-        message = `Вот ссылка на ${item.name}: ${item.url}\n\nПромокод: ${boldCode}\n\nОписание: ${item.description}`;
-        keyboard = new InlineKeyboard().text('Скопировать промокод');
-      }
-      
-      await ctx.reply(message, { parse_mode: 'HTML', reply_markup: keyboard });
-    });
+      bot.hears(item.name, async (ctx) => {
+          let message = '';
+          if (item.type === 'social') {
+              message = `Вот ссылка на ${item.name}: ${item.url}`;
+          } else if (item.type === 'promo') {
+              message = `Вот ссылка на ${item.name}: ${item.url}\n\nПромокод: ${item.code}\n\nОписание: ${item.description}`;
+          }
+          await ctx.reply(message);
+      });
   });
 }
-
-
 
 bot.hears('Социальные сети', async (ctx) => {
   const socialKeyboard = createKeyboard(socialNetworks);
