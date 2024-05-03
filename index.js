@@ -25,11 +25,11 @@ bot.command('start', async (ctx) => {
     updateUserData(userDataFile, ctx.from.id);
   }
   const startKeyboard = new Keyboard()
+    .text('Предложка')
+    .row()
     .text('Социальные сети')
     .row()
     .text('Промокоды и скидки')
-    .row()
-    .text('Предложка')
     .row()
   await ctx.reply(
     'Привет! Я бот помошник канала Техноманьяк!',
@@ -87,12 +87,12 @@ bot.hears('Промокоды и скидки', async (ctx) => {
 // Обработчик команды "Назад"
 bot.hears('Назад ↩️', async (ctx) => {
   const startKeyboard = new Keyboard()
+    .text('Предложка')
+    .row()
     .text('Социальные сети')
     .row()
     .text('Промокоды и скидки')
     .row()
-    .text('Предложка')
-    .row();
   await ctx.reply('Выберите действие:', {
     reply_markup: startKeyboard,
   });
@@ -145,7 +145,7 @@ bot.on('message:text', async (ctx) => {
     suggestionClicked[ctx.from.id] = false;
   } else {
     // Отправляем сообщение пользователю о том, что сначала нужно нажать кнопку "Предложка"
-    await ctx.reply('Пожалуйста, сначала нажмите кнопку "Предложка" для отправки сообщения автору бота.');
+    await ctx.reply('Пожалуйста, сначала нажмите кнопку "Предложка" для отправки сообщения автору канала!.');
   }
 });
 
@@ -154,10 +154,6 @@ bot.api.setMyCommands([
   {
     command:'start', 
     description: 'Старт бота',
-  },
-  {
-    command:'admin', 
-    description: 'Статистика по использованию бота',
   },
 ]);
 
@@ -177,165 +173,3 @@ bot.catch((err) => {
   });
 
 bot.start();
-
-
-
-
-// bot.hears('Промокоды и скидки', async (ctx) => {
-//   // Создаем инлайновую клавиатуру
-//   const promoKeyboard = new InlineKeyboard()
-//     .text('Хостинг сервера', 'hosting')
-//     .row()
-//     .text('Яндекс практикум', 'yandex')
-
-//   // Отправляем клавиатуру в ответе на сообщение
-//   await ctx.reply('Выберите категорию:', {
-//     reply_markup: promoKeyboard,
-//   });
-// });
-
-
-
-
-
-
-
-
-
-
-
-// bot.hears('Социальные сети', async (ctx) => {
-//   // Создаем инлайновую клавиатуру
-//   const socialKeyboard = new Keyboard()
-//     .text('YouTube', 'YouTube')
-//     .row()
-//     .text('Telegram', 'Telegram')
-//     .row()
-//     .text('Vk', 'Vk')
-//     .row()
-//     .text('ДЗЕН', 'ДЗЕН')
-//     .row()
-//     .text('TikTok', 'TikTok')
-//     .row()
-//     .text('X', 'X')
-//     .row()
-//     .text('Instagram', 'Instagram')
-
-//   // Отправляем клавиатуру в ответе на сообщение
-//   await ctx.reply('Выберите социальную сеть:', {
-//     reply_markup: socialKeyboard,
-//   });
-// });
-
-// bot.hears('Промокоды и скидки', async (ctx) => {
-//   // Создаем инлайновую клавиатуру
-//   const promoKeyboard = new InlineKeyboard()
-//     .text('Хостинг сервера', 'hosting')
-//     .row()
-//     .text('Яндекс практикум', 'yandex')
-
-//   // Отправляем клавиатуру в ответе на сообщение
-//   await ctx.reply('Выберите категорию:', {
-//     reply_markup: promoKeyboard,
-//   });
-// });
-
-// //Единный обработчик для двух событий
-// bot.on('callback_query', async (ctx) => {
-//   const query = ctx.callbackQuery.data;
-//   let message = '';
-
-//   switch (query) {
-//     case 'hosting':
-//       message = 'Вот ссылка на хостинг сервера: https://timeweb.cloud/?i=108133';
-//       break;
-//     case 'yandex':
-//       message = 'Вот ссылка на Яндекс практикум: https://example.com/yandex';
-//       break;
-//     case 'YouTube':
-//       message = 'Вот ссылка на YouTube: https://www.youtube.com/@tehno.maniak';
-//       break;
-//     case 'Telegram':
-//       message = 'Вот ссылка на Telegram: https://t.me/tehnomaniak07';
-//       break;
-//     case 'Vk':
-//       message = 'Вот ссылка на ВКонтакте: https://vk.com/public212223166';
-//       break;
-//     case 'ДЗЕН':
-//       message = 'Вот ссылка на Дзен: https://dzen.ru/filimonov-blog.ru';
-//       break;
-//     case 'TikTok':
-//       message = 'Вот ссылка на TikTok: https://www.tiktok.com/';
-//       break;
-//     case 'X':
-//       message = 'Вот ссылка на X: https://example.com/x';
-//       break;
-//     case 'Instagram':
-//       message = 'Вот ссылка на Instagram: https://www.instagram.com/';
-//       break;
-//     default:
-//       message = 'Извините, что-то пошло не так.';
-//   }
-
-//   // Отправляем сообщение с ссылкой
-//   await ctx.reply(message);
-// });
-
-
-
-// bot.on('callback_query:data', async (ctx) => {
-//   const socialNetwork = ctx.callbackQuery.data;
-
-//   // Определяем URL для выбранной социальной сети
-//   let socialUrl;
-//   switch (socialNetwork) {
-//     case 'YouTube':
-//       socialUrl = 'https://www.youtube.com/@tehno.maniak';
-//       break;
-//     case 'Telegram':
-//       socialUrl = 'https://t.me/tehnomaniak07';
-//       break;
-//     case 'Vk':
-//       socialUrl = 'https://vk.com/public212223166';
-//       break;
-//     case 'ДЗЕН':
-//       socialUrl = 'https://dzen.ru/filimonov-blog.ru';
-//       break;
-//     case 'TikTok':
-//         socialUrl = 'https://dzen.ru/filimonov-blog.ru';
-//       break;
-//     case 'X':
-//         socialUrl = 'https://dzen.ru/filimonov-blog.ru';
-//     break;
-//     case 'Instagram':
-//       socialUrl = 'https://dzen.ru/filimonov-blog.ru';
-//     break;
-//     default:
-//       socialUrl = '';
-//   }
-
-//   // Отправляем ссылку на социальную сеть
-//   if (socialUrl) {
-//     await ctx.reply(`Вот ваша ссылка на ${socialNetwork}: ${socialUrl}`);
-//   } else {
-//     await ctx.reply('Извините, что-то пошло не так.');
-//   }
-// });
-
-// bot.on('callback_query', async (ctx) => {
-//   const query = ctx.callbackQuery.data;
-//   let message = '';
-
-//   switch (query) {
-//     case 'hosting':
-//       message = 'Вот ссылка на хостинг сервера: https://example.com/hosting';
-//       break;
-//     case 'yandex':
-//       message = 'Вот ссылка на Яндекс практикум: https://example.com/yandex';
-//       break;
-//     default:
-//       message = 'Извините, что-то пошло не так.';
-//   }
-
-//   await ctx.reply(message);
-// });
