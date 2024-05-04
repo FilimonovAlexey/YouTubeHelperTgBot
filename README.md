@@ -41,7 +41,7 @@ sudo apt install git
 git clone https://github.com/FilimonovAlexey/YouTubeHelperTgBot.git
 ```
 
-* Клонируем репозиторий с ботом на сервер:
+* Переходим в папку проекта:
 ```bash
 cd YouTubeHelperTgBot
 ```
