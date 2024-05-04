@@ -18,7 +18,7 @@
 
 ## Демо бота
 
-Опробовать бота можно в Telegram по ссылке - @Tehnomaniac_Helper_bot
+Опробовать бота можно в Telegram по ссылке - [@Tehnomaniac_Helper_bot](https://t.me/Tehnomaniac_Helper_bot)
 
 Команды Telegram бота:
 - /start
