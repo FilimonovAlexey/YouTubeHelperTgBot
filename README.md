@@ -1,5 +1,9 @@
 # Telegram бот помошник для владельца YouTube канала
 
+## Технологии
+![JavaScript](https://img.shields.io/badge/-JavaScript-f7df1e?logo=javaScript&logoColor=black)
+![GrammyJS](https://img.shields.io/badge/-grammyjs-61daf8?logo=javaScript&logoColor=black)
+![TelegramAPI](https://img.shields.io/badge/-Telegram-99d6f8?logo=Telegram&logoColor=black)
 
 ## Демо бота
 
