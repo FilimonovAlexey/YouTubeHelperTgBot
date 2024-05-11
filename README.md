@@ -17,7 +17,7 @@
 ![TelegramAPI](https://img.shields.io/badge/-Telegram-99d6f8?logo=Telegram&logoColor=black)
 
 ## Демо бота
-Обзор возможностей бота и инструкция по настройке - [Смотреть на YouTube](https://youtu.be/G1GCEgfwyyY)
+Обзор возможностей бота и инструкция по настройке - [Смотреть на YouTube](https://youtu.be/G1GCEgfwyyY)  
 Опробовать бота можно в Telegram по ссылке - [@Tehnomaniac_Helper_bot](https://t.me/Tehnomaniac_Helper_bot)
 
 Команды Telegram бота:
