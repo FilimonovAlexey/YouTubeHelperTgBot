@@ -8,6 +8,7 @@ const socialNetworks = [
   { name: 'X', url: 'https://twitter.com/F1L_zZz', type: 'social' },
   { name: 'Instagram', url: 'https://www.instagram.com/tehnomaniak_blog/', type: 'social' },
   { name: 'Boosty', url: 'https://boosty.to/tehnomaniak', type: 'social' },
+  { name: 'GitHub', url: 'https://github.com/FilimonovAlexey', type: 'social' },
 ];
 
 // Массив кнопок для каждой категории промокодов и скидок
