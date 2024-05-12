@@ -24,29 +24,23 @@ function isAdmin(userId, adminId) {
 function createKeyboard(buttons) {
   const keyboard = new Keyboard();
   const buttonCount = buttons.length;
-  
-  // Вычисляем количество кнопок в каждой колонке
   const buttonsPerColumn = Math.ceil(buttonCount / 2);
-  
+
+  // По две кнопки на строку
   for (let i = 0; i < buttonsPerColumn; i++) {
-    // Добавляем кнопку в первую колонку
-    const index1 = i;
-    keyboard.text(buttons[index1].name);
-    
-    // Проверяем, есть ли кнопка для второй колонки
-    const index2 = i + buttonsPerColumn;
-    if (index2 < buttonCount) {
-      // Добавляем кнопку во вторую колонку
-      keyboard.text(buttons[index2].name);
+    const firstButtonIndex = i;
+    const secondButtonIndex = i + buttonsPerColumn;
+
+    keyboard.text(buttons[firstButtonIndex].name); // Добавляем первую кнопку
+
+    if (secondButtonIndex < buttonCount) {
+      keyboard.text(buttons[secondButtonIndex].name); // Добавляем вторую кнопку, если она существует
     }
-    
-    // Переходим на следующую строку
-    keyboard.row();
+
+    keyboard.row(); // Начинаем новую строку после каждой пары кнопок
   }
-  
-  // Добавляем кнопку "Назад"
-  keyboard.text('Назад ↩️');
-  
+
+  keyboard.text('Назад ↩️'); // Добавляем кнопку "Назад" в конец
   return keyboard;
 }
 

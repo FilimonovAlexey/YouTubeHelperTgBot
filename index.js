@@ -142,7 +142,6 @@ bot.on('message', async (ctx) => {
     // Формируем информацию о пользователе
     const userInfo = `Сообщение от ${ctx.from.first_name || ''} ${ctx.from.last_name || ''} (@${ctx.from.username || 'нет username'}, ID: ${ctx.from.id}): `;
     
-    // Создаём инлайн клавиатуру
     const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${ctx.from.id}`);
 
     // Проверяем тип сообщения
