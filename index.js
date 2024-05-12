@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard } = require('grammy');
+const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard, session } = require('grammy');
 const fs = require('fs');
 const { logger } = require('./utils/logger');
 const { updateUserData, isAdmin, createKeyboard } = require('./utils/helpers');
@@ -8,16 +8,21 @@ const { socialNetworks, promoCodes } = require('./utils/buttons');
 // Создание экземпляра бота
 const bot = new Bot(process.env.BOT_API_KEY);
 
+// Настройка сессии с использованием внутреннего хранилища
+bot.use(session({
+  initial: () => ({})
+}));
+
 // Файл, в котором будут храниться данные о пользователях
 const userDataFile = 'userData.json';
 
-// Проверяем существование файла userData.json и создаем его, если он не существует
 if (!fs.existsSync(userDataFile)) {
   fs.writeFileSync(userDataFile, '{}');
 }
 
 let userData = JSON.parse(fs.readFileSync(userDataFile));
 
+// Обработчики команд
 bot.command('start', async (ctx) => {
   // Проверяем, запускает ли пользователь бот впервые
   if (!userData[ctx.from.id]) {
@@ -39,11 +44,8 @@ bot.command('start', async (ctx) => {
   });
 });
 
-// Обработка команды администратора
 bot.command('admin', async (ctx) => {
-  // Проверяем, является ли пользователь администратором
   if (isAdmin(ctx.from.id, process.env.ADMIN_ID)) {
-    // Если пользователь администратор, отправляем статистику использования бота
     let totalStarts = 0;
     for (const userId in userData) {
       totalStarts += userData[userId].timesStarted;
@@ -100,91 +102,74 @@ bot.hears('Назад ↩️', async (ctx) => {
   });
 });
 
-// Обработка нажатий на кнопки социальных сетей
 handleButtonClicks(socialNetworks);
-
-// Обработка нажатий на кнопки промокодов и скидок
 handleButtonClicks(promoCodes);
 
-// Отправляем сообщение с клавиатурой
-bot.hears('📲 Социальные сети', async (ctx) => {
-  await ctx.reply('Выберите социальную сеть:', {
-    reply_markup: socialKeyboard,
-  });
-});
-
-// Отправляем сообщение с клавиатурой
-bot.hears('🔥 Промокоды и скидки', async (ctx) => {
-  await ctx.reply('Выберите категорию:', {
-    reply_markup: promoKeyboard,
-  });
-});
-
-// Флаг для отслеживания нажатия на кнопку "Предложка" и пользователя, который ее нажал
 let suggestionClicked = {};
 
-// Обработчик команды "Предложка"
 bot.hears('🙋‍♂️ Предложка', async (ctx) => {
-  // Устанавливаем флаг нажатия на кнопку "Предложка" для данного пользователя
   suggestionClicked[ctx.from.id] = true;
   await ctx.reply('Опишите ваше предложение или сообщение, которое вы хотели бы отправить автору бота.');
 });
 
-// Обработчик всех текстовых сообщений, чтобы пересылать сообщения от пользователя автору бота
+// Обработка всех текстовых сообщений
 bot.on('message', async (ctx) => {
   const authorId = process.env.ADMIN_ID;
-  
-  // Проверяем, была ли нажата кнопка "Предложка" перед отправкой сообщения
-  if (suggestionClicked[ctx.from.id]) {
-    // Пересылаем сообщение от пользователя автору бота
-    if (ctx.message.text) {
-      // Если это текстовое сообщение
-      await ctx.forwardMessage(authorId, { text: ctx.message.text });
-    } else if (ctx.message.voice) {
-      // Если это голосовое сообщение
-      await ctx.forwardMessage(authorId, { voice: ctx.message.voice });
-    } else if (ctx.message.photo) {
-      // Если это фото
-      await ctx.forwardMessage(authorId, { photo: ctx.message.photo });
-    } else if (ctx.message.video) {
-      // Если это видео
-      await ctx.forwardMessage(authorId, { video: ctx.message.video });
-    } else {
-      // Если это другой тип сообщения, вы можете обработать его соответственно
-      await ctx.forwardMessage(authorId, ctx.message);
-    }
-    
-    // Отправляем пользователю подтверждение о том, что его сообщение отправлено автору
-    await ctx.reply('Ваше сообщение успешно отправлено автору бота');
+  const fromId = ctx.from.id.toString();
 
+  if (fromId === authorId && ctx.session.replyToUser) {
+    // Различаем типы сообщений и отправляем соответствующий контент
+    if (ctx.message.text) {
+      await ctx.api.sendMessage(ctx.session.replyToUser, ctx.message.text);
+    } else if (ctx.message.voice) {
+      await ctx.api.sendVoice(ctx.session.replyToUser, ctx.message.voice.file_id);
+    } else if (ctx.message.video) {
+      await ctx.api.sendVideo(ctx.session.replyToUser, ctx.message.video.file_id);
+    } else if (ctx.message.photo) {
+      const photo = ctx.message.photo.pop();
+      await ctx.api.sendPhoto(ctx.session.replyToUser, photo.file_id);
+    } else if (ctx.message.audio) {
+      await ctx.api.sendAudio(ctx.session.replyToUser, ctx.message.audio.file_id);
+    } else if (ctx.message.document) {
+      await ctx.api.sendDocument(ctx.session.replyToUser, ctx.message.document.file_id);
+    }
+    await ctx.reply('Ваш ответ был отправлен пользователю.');
+    ctx.session.replyToUser = undefined;
+    return;
+  }
+
+  // Проверяем, была ли нажата кнопка "Предложка"
+  if (suggestionClicked[fromId]) {
+    let inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${fromId}`);
+    await ctx.api.copyMessage(authorId, ctx.chat.id, ctx.message.message_id, { reply_markup: inlineKeyboard });
+    await ctx.reply('Ваше сообщение успешно отправлено автору бота');
+    suggestionClicked[fromId] = false;
   } else {
-    // Отправляем сообщение пользователю о том, что сначала нужно нажать кнопку "Предложка"
-    await ctx.reply('Пожалуйста, сначала нажмите кнопку "Предложка" для отправки сообщения автору канала!');
+    if (fromId !== authorId) {
+      await ctx.reply('Пожалуйста, сначала нажмите кнопку "Предложка" для отправки сообщения автору канала!');
+    }
   }
 });
 
+// Обработчик ответов на предложки
+bot.callbackQuery(/^reply-(\d+)$/, async (ctx) => {
+  const targetUserId = ctx.match[1];
+  ctx.session.replyToUser = targetUserId;
+  await ctx.answerCallbackQuery('Вы можете ответить текстом, аудио, видео или фото.');
+});
 
-//Команды бота и их описание
-bot.api.setMyCommands([
-  {
-    command:'start', 
-    description: 'Старт бота',
-  },
-]);
-
-//Обработчик ошибок
+// Обработка ошибок
 bot.catch((err) => {
   const ctx = err.ctx;
-  logger.error(`Error while handling update ${ctx.update.update_id}:`);
+  console.error(`Error while handling update ${ctx.update.update_id}:`);
   const e = err.error;
-
   if (e instanceof GrammyError) {
-    logger.error("Error in request:", e.description);
+    console.error("Error in request:", e.description);
   } else if (e instanceof HttpError) {
-    logger.error("Could not contact Telegram:", e);
+    console.error("Could not contact Telegram:", e);
   } else {
-    logger.error("Unknown error:", e);
+    console.error("Unknown error:", e);
   }
-  });
+});
 
 bot.start();
