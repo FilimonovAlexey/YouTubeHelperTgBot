@@ -138,10 +138,29 @@ bot.on('message', async (ctx) => {
     return;
   }
 
-  // Проверяем, была ли нажата кнопка "Предложка"
   if (suggestionClicked[fromId]) {
-    let inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${fromId}`);
-    await ctx.api.copyMessage(authorId, ctx.chat.id, ctx.message.message_id, { reply_markup: inlineKeyboard });
+    // Формируем информацию о пользователе
+    const userInfo = `Сообщение от ${ctx.from.first_name || ''} ${ctx.from.last_name || ''} (@${ctx.from.username || 'нет username'}, ID: ${ctx.from.id}): `;
+    
+    // Создаём инлайн клавиатуру
+    const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${ctx.from.id}`);
+
+    // Проверяем тип сообщения
+    if (ctx.message.text) {
+      // Для текстовых сообщений добавляем информацию о пользователе непосредственно к тексту
+      await ctx.api.sendMessage(authorId, userInfo + ctx.message.text, { reply_markup: inlineKeyboard });
+    } else {
+      // Для медиафайлов используем copyMessage с добавлением caption
+      const mediaType = Object.keys(ctx.message).find(key => ['photo', 'video', 'document', 'audio', 'voice'].includes(key));
+      if (mediaType) {
+        await ctx.api.copyMessage(authorId, ctx.chat.id, ctx.message.message_id, {
+          caption: userInfo,
+          reply_markup: inlineKeyboard
+        });
+      }
+    }
+
+    // Отправляем подтверждение пользователю
     await ctx.reply('Ваше сообщение успешно отправлено автору бота');
     suggestionClicked[fromId] = false;
   } else {
