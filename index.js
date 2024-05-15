@@ -1,9 +1,11 @@
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard, session } = require('grammy');
 const sqlite3 = require('sqlite3').verbose();
 const { open } = require('sqlite');
 const { logger } = require('./utils/logger');
-const { updateUserData, isAdmin, createKeyboard, getUsageStats } = require('./utils/helpers');
+const { updateUserData, recordUserInteraction, recordSocialNetworkRequest, recordPromoCodeRequest, isAdmin, createKeyboard, getUsageStats } = require('./utils/helpers');
 const { socialNetworks, promoCodes } = require('./utils/buttons');
 
 // Создание экземпляра бота
@@ -27,10 +29,33 @@ let db;
     timesStarted INTEGER DEFAULT 0,
     lastSeen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  await db.exec(`CREATE TABLE IF NOT EXISTS interactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER,
+    interactionTime TIMESTAMP
+  )`);
+
+  await db.exec(`CREATE TABLE IF NOT EXISTS socialNetworkRequests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER,
+    networkName TEXT,
+    requestTime TIMESTAMP
+  )`);
+
+  await db.exec(`CREATE TABLE IF NOT EXISTS promoCodeRequests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER,
+    promoName TEXT,
+    requestTime TIMESTAMP
+  )`);
+
+  logger.info('Database initialized and connection established');
 })();
 
 // Обработчики команд
 bot.command('start', async (ctx) => {
+  logger.info(`User ${ctx.from.id} started the bot`);
   await updateUserData(db, ctx.from.id);
   const startKeyboard = new Keyboard()
     .text('🙋‍♂️ Предложка')
@@ -48,26 +73,51 @@ bot.command('start', async (ctx) => {
 bot.command('admin', async (ctx) => {
   if (isAdmin(ctx.from.id, process.env.ADMIN_ID)) {
     const stats = await getUsageStats(db);
-    await ctx.reply(`Статистика использования бота:\nВсего запусков: ${stats.totalStarts}\nИспользовали бота сегодня: ${stats.todayStarts}`);
+    let response = `Статистика использования бота:\nВсего запусков: ${stats.totalStarts}\nИспользовали бота сегодня: ${stats.todayStarts}\nВсего взаимодействий: ${stats.totalInteractions}\nВзаимодействий сегодня: ${stats.todayInteractions}\n\n`;
+
+    response += 'Запросы на социальные сети:\n';
+    for (const { networkName, total } of stats.totalSocialNetworkRequests) {
+      const today = stats.todaySocialNetworkRequests.find(n => n.networkName === networkName)?.today || 0;
+      response += `${networkName} - Всего: ${total}, Сегодня: ${today}\n`;
+    }
+
+    response += '\nЗапросы на промокоды:\n';
+    for (const { promoName, total } of stats.totalPromoCodeRequests) {
+      const today = stats.todayPromoCodeRequests.find(p => p.promoName === promoName)?.today || 0;
+      response += `${promoName} - Всего: ${total}, Сегодня: ${today}\n`;
+    }
+
+    await ctx.reply(response);
   } else {
     await ctx.reply('У вас нет прав администратора!');
   }
 });
 
+// Обработка взаимодействий с ботом
+bot.use(async (ctx, next) => {
+  await recordUserInteraction(db, ctx.from.id);
+  return next();
+});
+
 // Функция для обработки нажатий на кнопки
-function handleButtonClicks(items) {
+function handleButtonClicks(items, recordRequest) {
   items.forEach(item => {
-      bot.hears(item.name, async (ctx) => {
-          let message = '';
-          if (item.type === 'social') {
-              message = `Вот ссылка на ${item.name}: ${item.url}`;
-          } else if (item.type === 'promo') {
-              message = `Вот ссылка на ${item.name}: ${item.url}\n\nПромокод: ${item.code}\n\nОписание: ${item.description}`;
-          }
-          await ctx.reply(message);
-      });
+    bot.hears(item.name, async (ctx) => {
+      await recordUserInteraction(db, ctx.from.id);
+      await recordRequest(db, ctx.from.id, item.name);
+      let message = '';
+      if (item.type === 'social') {
+        message = `Вот ссылка на ${item.name}: ${item.url}`;
+      } else if (item.type === 'promo') {
+        message = `Вот ссылка на ${item.name}: ${item.url}\n\nПромокод: ${item.code}\n\nОписание: ${item.description}`;
+      }
+      await ctx.reply(message);
+    });
   });
 }
+
+handleButtonClicks(socialNetworks, recordSocialNetworkRequest);
+handleButtonClicks(promoCodes, recordPromoCodeRequest);
 
 bot.hears('📲 Социальные сети', async (ctx) => {
   const socialKeyboard = createKeyboard(socialNetworks);
@@ -96,9 +146,6 @@ bot.hears('Назад ↩️', async (ctx) => {
   });
 });
 
-handleButtonClicks(socialNetworks);
-handleButtonClicks(promoCodes);
-
 let suggestionClicked = {};
 
 bot.hears('🙋‍♂️ Предложка', async (ctx) => {
@@ -111,6 +158,7 @@ bot.on('message', async (ctx) => {
   const fromId = ctx.from.id.toString();
 
   if (fromId === authorId && ctx.session.replyToUser) {
+    await ctx.api.sendMessage(ctx.session.replyToUser, 'На ваше сообщение получен ответ от админа канала.');
     if (ctx.message.text) {
       await ctx.api.sendMessage(ctx.session.replyToUser, ctx.message.text);
     } else if (ctx.message.voice) {
@@ -125,7 +173,6 @@ bot.on('message', async (ctx) => {
     } else if (ctx.message.document) {
       await ctx.api.sendDocument(ctx.session.replyToUser, ctx.message.document.file_id);
     }
-    await ctx.reply('Ваш ответ был отправлен пользователю.');
     ctx.session.replyToUser = undefined;
     return;
   }
