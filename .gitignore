@@ -23,5 +23,6 @@ yarn-debug.log*
 yarn-error.log*
 
 userData.json
+userData.db
 
 /logs
