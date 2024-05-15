@@ -1,8 +1,9 @@
 require('dotenv').config();
 const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard, session } = require('grammy');
-const fs = require('fs');
+const sqlite3 = require('sqlite3').verbose();
+const { open } = require('sqlite');
 const { logger } = require('./utils/logger');
-const { updateUserData, isAdmin, createKeyboard } = require('./utils/helpers');
+const { updateUserData, isAdmin, createKeyboard, getUsageStats } = require('./utils/helpers');
 const { socialNetworks, promoCodes } = require('./utils/buttons');
 
 // Создание экземпляра бота
@@ -13,32 +14,32 @@ bot.use(session({
   initial: () => ({})
 }));
 
-// Файл, в котором будут храниться данные о пользователях
-const userDataFile = 'userData.json';
+// Подключение к базе данных SQLite
+let db;
+(async () => {
+  db = await open({
+    filename: './userData.db',
+    driver: sqlite3.Database
+  });
 
-if (!fs.existsSync(userDataFile)) {
-  fs.writeFileSync(userDataFile, '{}');
-}
-
-let userData = JSON.parse(fs.readFileSync(userDataFile));
+  await db.exec(`CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY,
+    timesStarted INTEGER DEFAULT 0,
+    lastSeen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )`);
+})();
 
 // Обработчики команд
 bot.command('start', async (ctx) => {
-  // Проверяем, запускает ли пользователь бот впервые
-  if (!userData[ctx.from.id]) {
-    // Если пользователь запускает бот впервые, обновляем данные о пользователе
-    updateUserData(userDataFile, ctx.from.id);
-  }
+  await updateUserData(db, ctx.from.id);
   const startKeyboard = new Keyboard()
     .text('🙋‍♂️ Предложка')
     .row()
     .text('📲 Социальные сети')
     .row()
     .text('🔥 Промокоды и скидки')
-    .row()
-  await ctx.reply(
-    'Привет! Я бот помошник канала Техноманьяк!',
-  );
+    .row();
+  await ctx.reply('Привет! Я бот помощник канала Техноманьяк!');
   await ctx.reply('С чего начнем? Выбирай 👇', {
     reply_markup: startKeyboard,
   });
@@ -46,11 +47,8 @@ bot.command('start', async (ctx) => {
 
 bot.command('admin', async (ctx) => {
   if (isAdmin(ctx.from.id, process.env.ADMIN_ID)) {
-    let totalStarts = 0;
-    for (const userId in userData) {
-      totalStarts += userData[userId].timesStarted;
-    }
-    await ctx.reply(`Статистика использования бота:\nВсего запусков: ${totalStarts}`);
+    const stats = await getUsageStats(db);
+    await ctx.reply(`Статистика использования бота:\nВсего запусков: ${stats.totalStarts}\nИспользовали бота сегодня: ${stats.todayStarts}`);
   } else {
     await ctx.reply('У вас нет прав администратора!');
   }
@@ -73,22 +71,18 @@ function handleButtonClicks(items) {
 
 bot.hears('📲 Социальные сети', async (ctx) => {
   const socialKeyboard = createKeyboard(socialNetworks);
-  suggestionClicked[ctx.from.id] = false;
   await ctx.reply('Выберите социальную сеть:', {
     reply_markup: socialKeyboard,
   });
 });
 
-// Обработчик команды "Промокоды и скидки"
 bot.hears('🔥 Промокоды и скидки', async (ctx) => {
   const promoKeyboard = createKeyboard(promoCodes);
-  suggestionClicked[ctx.from.id] = false;
   await ctx.reply('Выберите категорию промокодов и скидок:', {
     reply_markup: promoKeyboard,
   });
 });
 
-// Обработчик команды "Назад"
 bot.hears('Назад ↩️', async (ctx) => {
   const startKeyboard = new Keyboard()
     .text('🙋‍♂️ Предложка')
@@ -96,7 +90,7 @@ bot.hears('Назад ↩️', async (ctx) => {
     .text('📲 Социальные сети')
     .row()
     .text('🔥 Промокоды и скидки')
-    .row()
+    .row();
   await ctx.reply('Выберите действие:', {
     reply_markup: startKeyboard,
   });
@@ -112,13 +106,11 @@ bot.hears('🙋‍♂️ Предложка', async (ctx) => {
   await ctx.reply('Опишите ваше предложение или сообщение, которое вы хотели бы отправить автору бота.');
 });
 
-// Обработка всех текстовых сообщений
 bot.on('message', async (ctx) => {
   const authorId = process.env.ADMIN_ID;
   const fromId = ctx.from.id.toString();
 
   if (fromId === authorId && ctx.session.replyToUser) {
-    // Различаем типы сообщений и отправляем соответствующий контент
     if (ctx.message.text) {
       await ctx.api.sendMessage(ctx.session.replyToUser, ctx.message.text);
     } else if (ctx.message.voice) {
@@ -139,17 +131,13 @@ bot.on('message', async (ctx) => {
   }
 
   if (suggestionClicked[fromId]) {
-    // Формируем информацию о пользователе
     const userInfo = `Сообщение от ${ctx.from.first_name || ''} ${ctx.from.last_name || ''} (@${ctx.from.username || 'нет username'}, ID: ${ctx.from.id}): `;
     
     const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${ctx.from.id}`);
 
-    // Проверяем тип сообщения
     if (ctx.message.text) {
-      // Для текстовых сообщений добавляем информацию о пользователе непосредственно к тексту
       await ctx.api.sendMessage(authorId, userInfo + ctx.message.text, { reply_markup: inlineKeyboard });
     } else {
-      // Для медиафайлов используем copyMessage с добавлением caption
       const mediaType = Object.keys(ctx.message).find(key => ['photo', 'video', 'document', 'audio', 'voice'].includes(key));
       if (mediaType) {
         await ctx.api.copyMessage(authorId, ctx.chat.id, ctx.message.message_id, {
@@ -159,7 +147,6 @@ bot.on('message', async (ctx) => {
       }
     }
 
-    // Отправляем подтверждение пользователю
     await ctx.reply('Ваше сообщение успешно отправлено автору бота');
     suggestionClicked[fromId] = false;
   } else {
@@ -169,25 +156,15 @@ bot.on('message', async (ctx) => {
   }
 });
 
-// Обработчик ответов на предложки
 bot.callbackQuery(/^reply-(\d+)$/, async (ctx) => {
   const targetUserId = ctx.match[1];
   ctx.session.replyToUser = targetUserId;
   await ctx.answerCallbackQuery('Вы можете ответить текстом, аудио, видео или фото.');
 });
 
-// Обработка ошибок
 bot.catch((err) => {
   const ctx = err.ctx;
-  console.error(`Error while handling update ${ctx.update.update_id}:`);
-  const e = err.error;
-  if (e instanceof GrammyError) {
-    console.error("Error in request:", e.description);
-  } else if (e instanceof HttpError) {
-    console.error("Could not contact Telegram:", e);
-  } else {
-    console.error("Unknown error:", e);
-  }
+  logger.error(`Error while handling update ${ctx.update.update_id}:`, err);
 });
 
 bot.start();

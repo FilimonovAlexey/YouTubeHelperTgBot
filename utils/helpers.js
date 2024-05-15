@@ -1,18 +1,9 @@
-//Вспомогательные функции
-
-const fs = require('fs');
 const { Keyboard } = require('grammy');
 
 // Функция для обновления данных о пользователе
-function updateUserData(userDataFile, userId) {
-  let userData = JSON.parse(fs.readFileSync(userDataFile));
-  if (!userData[userId]) {
-    userData[userId] = {
-      timesStarted: 0,
-    };
-  }
-  userData[userId].timesStarted++;
-  fs.writeFileSync(userDataFile, JSON.stringify(userData, null, 2));
+async function updateUserData(db, userId) {
+  await db.run(`INSERT INTO users (id, timesStarted, lastSeen) VALUES (?, 1, CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET timesStarted = timesStarted + 1, lastSeen = CURRENT_TIMESTAMP`, [userId]);
 }
 
 // Функция для проверки, является ли пользователь администратором
@@ -26,22 +17,31 @@ function createKeyboard(buttons) {
   const buttonCount = buttons.length;
   const buttonsPerColumn = Math.ceil(buttonCount / 2);
 
-  // По две кнопки на строку
   for (let i = 0; i < buttonsPerColumn; i++) {
     const firstButtonIndex = i;
     const secondButtonIndex = i + buttonsPerColumn;
 
-    keyboard.text(buttons[firstButtonIndex].name); // Добавляем первую кнопку
+    keyboard.text(buttons[firstButtonIndex].name);
 
     if (secondButtonIndex < buttonCount) {
-      keyboard.text(buttons[secondButtonIndex].name); // Добавляем вторую кнопку, если она существует
+      keyboard.text(buttons[secondButtonIndex].name);
     }
 
-    keyboard.row(); // Начинаем новую строку после каждой пары кнопок
+    keyboard.row();
   }
 
-  keyboard.text('Назад ↩️'); // Добавляем кнопку "Назад" в конец
+  keyboard.text('Назад ↩️');
   return keyboard;
 }
 
-module.exports = { updateUserData, isAdmin, createKeyboard };
+// Функция для получения статистики использования бота
+async function getUsageStats(db) {
+  const totalStarts = await db.get(`SELECT SUM(timesStarted) as total FROM users`);
+  const todayStarts = await db.get(`SELECT COUNT(*) as today FROM users WHERE date(lastSeen) = date('now')`);
+  return {
+    totalStarts: totalStarts.total,
+    todayStarts: todayStarts.today
+  };
+}
+
+module.exports = { updateUserData, isAdmin, createKeyboard, getUsageStats };
