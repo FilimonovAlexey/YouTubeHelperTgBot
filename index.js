@@ -173,6 +173,7 @@ bot.on('message', async (ctx) => {
     } else if (ctx.message.document) {
       await ctx.api.sendDocument(ctx.session.replyToUser, ctx.message.document.file_id);
     }
+    await ctx.reply('Ответ направлен.');
     ctx.session.replyToUser = undefined;
     return;
   }
