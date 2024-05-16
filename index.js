@@ -5,7 +5,7 @@ const { Bot, GrammyError, HttpError, Keyboard, InlineKeyboard, session } = requi
 const sqlite3 = require('sqlite3').verbose();
 const { open } = require('sqlite');
 const { logger } = require('./utils/logger');
-const { updateUserData, recordUserInteraction, recordSocialNetworkRequest, recordPromoCodeRequest, isAdmin, createKeyboard, getUsageStats } = require('./utils/helpers');
+const { updateUserData, recordUserInteraction, recordSocialNetworkRequest, recordPromoCodeRequest, isAdmin, createKeyboard, getUsageStats, getMessages } = require('./utils/helpers');
 const { socialNetworks, promoCodes } = require('./utils/buttons');
 
 // Создание экземпляра бота
@@ -48,6 +48,16 @@ let db;
     userId INTEGER,
     promoName TEXT,
     requestTime TIMESTAMP
+  )`);
+
+  await db.exec(`CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER,
+    message TEXT,
+    media_type TEXT,
+    media_id TEXT,
+    replied INTEGER DEFAULT 0,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
 
   logger.info('Database initialized and connection established');
@@ -147,17 +157,137 @@ bot.hears('Назад ↩️', async (ctx) => {
 });
 
 let suggestionClicked = {};
+let unreadMessagesCount = 0;
 
 bot.hears('🙋‍♂️ Предложка', async (ctx) => {
-  suggestionClicked[ctx.from.id] = true;
-  await ctx.reply('Опишите ваше предложение или сообщение, которое вы хотели бы отправить автору бота.');
+  if (isAdmin(ctx.from.id, process.env.ADMIN_ID)) {
+    console.log('Admin accessed suggestions');
+    const adminKeyboard = new Keyboard()
+      .text('Все полученные сообщения')
+      .row()
+      .text('Сообщения без ответа')
+      .row()
+      .text('Назад ↩️')
+      .row();
+    await ctx.reply('Выберите действие:', {
+      reply_markup: adminKeyboard,
+    });
+    suggestionClicked[ctx.from.id] = true;
+  } else {
+    suggestionClicked[ctx.from.id] = true;
+    await ctx.reply('Опишите ваше предложение или сообщение, которое вы хотели бы отправить автору бота.');
+  }
+});
+
+bot.hears('Все полученные сообщения', async (ctx) => {
+  if (!isAdmin(ctx.from.id, process.env.ADMIN_ID)) return;
+  const messages = await getMessages(db);
+  if (messages.length === 0) {
+    await ctx.reply('Сообщений нет.');
+  } else {
+    for (const message of messages) {
+      const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${message.userId}`);
+      const userInfo = `Сообщение от ${message.userId}`;
+
+      if (message.message) {
+        await ctx.reply(`${userInfo}: ${message.message}`, { reply_markup: inlineKeyboard });
+      } else {
+        const mediaType = message.media_type;
+        if (mediaType === 'photo') {
+          await ctx.api.sendPhoto(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'video') {
+          await ctx.api.sendVideo(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'document') {
+          await ctx.api.sendDocument(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'audio') {
+          await ctx.api.sendAudio(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'voice') {
+          await ctx.api.sendVoice(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'video_note') {
+          await ctx.api.sendVideoNote(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        }
+      }
+    }
+  }
+});
+
+bot.hears('Сообщения без ответа', async (ctx) => {
+  if (!isAdmin(ctx.from.id, process.env.ADMIN_ID)) return;
+  const messages = await getMessages(db, 0);
+  if (messages.length === 0) {
+    await ctx.reply('Сообщений без ответа нет.');
+  } else {
+    for (const message of messages) {
+      const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${message.userId}`);
+      const userInfo = `Сообщение от ${message.userId}`;
+
+      if (message.message) {
+        await ctx.reply(`${userInfo}: ${message.message}`, { reply_markup: inlineKeyboard });
+      } else {
+        const mediaType = message.media_type;
+        if (mediaType === 'photo') {
+          await ctx.api.sendPhoto(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'video') {
+          await ctx.api.sendVideo(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'document') {
+          await ctx.api.sendDocument(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'audio') {
+          await ctx.api.sendAudio(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'voice') {
+          await ctx.api.sendVoice(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'video_note') {
+          await ctx.api.sendVideoNote(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        }
+      }
+    }
+  }
 });
 
 bot.on('message', async (ctx) => {
   const authorId = process.env.ADMIN_ID;
   const fromId = ctx.from.id.toString();
 
+  console.log(`unreadMessagesCount: ${unreadMessagesCount}`);
+  console.log(`fromId: ${fromId}, authorId: ${authorId}`);
+
   if (fromId === authorId && ctx.session.replyToUser) {
+    await db.run(`UPDATE messages SET replied = 1 WHERE userId = ?`, [ctx.session.replyToUser]);
     await ctx.api.sendMessage(ctx.session.replyToUser, 'На ваше сообщение получен ответ от админа канала.');
     if (ctx.message.text) {
       await ctx.api.sendMessage(ctx.session.replyToUser, ctx.message.text);
@@ -172,34 +302,63 @@ bot.on('message', async (ctx) => {
       await ctx.api.sendAudio(ctx.session.replyToUser, ctx.message.audio.file_id);
     } else if (ctx.message.document) {
       await ctx.api.sendDocument(ctx.session.replyToUser, ctx.message.document.file_id);
+    } else if (ctx.message.video_note) {
+      await ctx.api.sendVideoNote(ctx.session.replyToUser, ctx.message.video_note.file_id);
     }
     await ctx.reply('Ответ направлен.');
     ctx.session.replyToUser = undefined;
+    unreadMessagesCount--;
     return;
   }
 
   if (suggestionClicked[fromId]) {
-    const userInfo = `Сообщение от ${ctx.from.first_name || ''} ${ctx.from.last_name || ''} (@${ctx.from.username || 'нет username'}, ID: ${ctx.from.id}): `;
-    
-    const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${ctx.from.id}`);
+    console.log('User sent a suggestion.');
+    let mediaType = '';
+    let mediaId = '';
 
     if (ctx.message.text) {
-      await ctx.api.sendMessage(authorId, userInfo + ctx.message.text, { reply_markup: inlineKeyboard });
+      await db.run(`INSERT INTO messages (userId, message) VALUES (?, ?)`, [ctx.from.id, ctx.message.text]);
     } else {
-      const mediaType = Object.keys(ctx.message).find(key => ['photo', 'video', 'document', 'audio', 'voice'].includes(key));
-      if (mediaType) {
-        await ctx.api.copyMessage(authorId, ctx.chat.id, ctx.message.message_id, {
-          caption: userInfo,
-          reply_markup: inlineKeyboard
-        });
+      if (ctx.message.photo) {
+        const photo = ctx.message.photo.pop();
+        mediaType = 'photo';
+        mediaId = photo.file_id;
+      } else if (ctx.message.video) {
+        mediaType = 'video';
+        mediaId = ctx.message.video.file_id;
+      } else if (ctx.message.document) {
+        mediaType = 'document';
+        mediaId = ctx.message.document.file_id;
+      } else if (ctx.message.audio) {
+        mediaType = 'audio';
+        mediaId = ctx.message.audio.file_id;
+      } else if (ctx.message.voice) {
+        mediaType = 'voice';
+        mediaId = ctx.message.voice.file_id;
+      } else if (ctx.message.video_note) {
+        mediaType = 'video_note';
+        mediaId = ctx.message.video_note.file_id;
       }
+
+      await db.run(`INSERT INTO messages (userId, media_type, media_id) VALUES (?, ?, ?)`, [ctx.from.id, mediaType, mediaId]);
     }
 
     await ctx.reply('Ваше сообщение успешно отправлено автору бота');
     suggestionClicked[fromId] = false;
+
+    // Увеличиваем счетчик и отправляем уведомление админу
+    unreadMessagesCount++;
+    console.log(`Admin notified, new unreadMessagesCount: ${unreadMessagesCount}`);
+    await ctx.api.sendMessage(authorId, `Вам пришло сообщение. Неотвеченных сообщений: ${unreadMessagesCount}`);
   } else {
     if (fromId !== authorId) {
+      console.log('User is not admin and did not click suggestion.');
       await ctx.reply('Пожалуйста, сначала нажмите кнопку "Предложка" для отправки сообщения автору канала!');
+    } else {
+      console.log('Admin received a new message.');
+      unreadMessagesCount++;
+      console.log(`Admin notified, new unreadMessagesCount: ${unreadMessagesCount}`);
+      await ctx.api.sendMessage(authorId, `Вам пришло сообщение. Неотвеченных сообщений: ${unreadMessagesCount}`);
     }
   }
 });
