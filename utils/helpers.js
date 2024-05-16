@@ -75,14 +75,13 @@ async function getUsageStats(db) {
 }
 
 // Функция для получения сообщений
-async function getMessages(db, replied = null, limit = 30, offset = 0) {
-  let query = `SELECT * FROM messages WHERE 1=1`;
+async function getMessages(db, replied = null) {
+  let query = `SELECT * FROM messages`;
   if (replied !== null) {
-    query += ` AND replied = ?`;
+    query += ` WHERE replied = ?`;
   }
-  query += ` ORDER BY timestamp DESC LIMIT ? OFFSET ?`;
-  const params = replied !== null ? [replied, limit, offset] : [limit, offset];
-  return await db.all(query, params);
+  const messages = await db.all(query, replied !== null ? [replied] : []);
+  return messages;
 }
 
 module.exports = { updateUserData, recordUserInteraction, recordSocialNetworkRequest, recordPromoCodeRequest, isAdmin, createKeyboard, getUsageStats,  getMessages};

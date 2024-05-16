@@ -189,7 +189,7 @@ bot.hears('Все полученные сообщения', async (ctx) => {
     await ctx.reply('Сообщений нет.');
   } else {
     for (const message of messages) {
-      const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${message.userId}`);
+      const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${message.id}`);
       const userInfo = `Сообщение от ${message.userId}`;
 
       if (message.message) {
@@ -234,12 +234,14 @@ bot.hears('Все полученные сообщения', async (ctx) => {
 
 bot.hears('Сообщения без ответа', async (ctx) => {
   if (!isAdmin(ctx.from.id, process.env.ADMIN_ID)) return;
-  const messages = await getMessages(db, 0);
+
+  const messages = await getMessages(db, 0);  // Получаем только сообщения без ответа
+
   if (messages.length === 0) {
     await ctx.reply('Сообщений без ответа нет.');
   } else {
     for (const message of messages) {
-      const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${message.userId}`);
+      const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${message.id}`);
       const userInfo = `Сообщение от ${message.userId}`;
 
       if (message.message) {
@@ -290,8 +292,11 @@ bot.on('message', async (ctx) => {
   console.log(`fromId: ${fromId}, authorId: ${authorId}`);
 
   if (fromId === authorId && ctx.session.replyToUser) {
-    await db.run(`UPDATE messages SET replied = 1 WHERE userId = ?`, [ctx.session.replyToUser]);
+    const targetMessageId = ctx.session.replyToMessageId;  // Получаем идентификатор сообщения
+
+    await db.run(`UPDATE messages SET replied = 1 WHERE id = ?`, [targetMessageId]);  // Обновляем сообщение как отвеченное
     await ctx.api.sendMessage(ctx.session.replyToUser, 'На ваше сообщение получен ответ от админа канала.');
+
     if (ctx.message.text) {
       await ctx.api.sendMessage(ctx.session.replyToUser, ctx.message.text);
     } else if (ctx.message.voice) {
@@ -308,9 +313,15 @@ bot.on('message', async (ctx) => {
     } else if (ctx.message.video_note) {
       await ctx.api.sendVideoNote(ctx.session.replyToUser, ctx.message.video_note.file_id);
     }
+
     await ctx.reply('Ответ направлен.');
     ctx.session.replyToUser = undefined;
-    unreadMessagesCount--;
+    ctx.session.replyToMessageId = undefined;  // Сбрасываем идентификатор сообщения
+
+    // Уменьшаем счетчик только если он больше 0
+    if (unreadMessagesCount > 0) {
+      unreadMessagesCount--;
+    }
     return;
   }
 
@@ -367,9 +378,16 @@ bot.on('message', async (ctx) => {
 });
 
 bot.callbackQuery(/^reply-(\d+)$/, async (ctx) => {
-  const targetUserId = ctx.match[1];
-  ctx.session.replyToUser = targetUserId;
-  await ctx.answerCallbackQuery('Вы можете ответить текстом, аудио, видео или фото.');
+  const targetMessageId = ctx.match[1];
+  const targetMessage = await db.get('SELECT userId FROM messages WHERE id = ?', [targetMessageId]);
+
+  if (targetMessage) {
+    ctx.session.replyToUser = targetMessage.userId;
+    ctx.session.replyToMessageId = targetMessageId;  // Устанавливаем идентификатор сообщения
+    await ctx.answerCallbackQuery('Вы можете ответить текстом, аудио, видео или фото.');
+  } else {
+    await ctx.answerCallbackQuery('Сообщение не найдено.', { show_alert: true });
+  }
 });
 
 bot.catch((err) => {
