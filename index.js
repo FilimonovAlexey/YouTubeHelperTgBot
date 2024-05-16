@@ -16,14 +16,8 @@ bot.use(session({
   initial: () => ({})
 }));
 
-// Подключение к базе данных SQLite
-let db;
-(async () => {
-  db = await open({
-    filename: './userData.db',
-    driver: sqlite3.Database
-  });
-
+// Функция для создания таблиц
+async function createTables(db) {
   await db.exec(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
     timesStarted INTEGER DEFAULT 0,
@@ -57,8 +51,31 @@ let db;
     media_type TEXT,
     media_id TEXT,
     replied INTEGER DEFAULT 0,
+    first_name TEXT,
+    username TEXT,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  logger.info('Tables created or already exist');
+}
+
+// Подключение к базе данных SQLite
+let db;
+(async () => {
+  const dbPath = './userData.db';
+
+  // Проверка на существование файла базы данных
+  const dbExists = fs.existsSync(dbPath);
+
+  db = await open({
+    filename: dbPath,
+    driver: sqlite3.Database
+  });
+
+  // Если базы данных не существует, создаем таблицы
+  if (!dbExists) {
+    await createTables(db);
+  }
 
   logger.info('Database initialized and connection established');
 })();
@@ -190,7 +207,59 @@ bot.hears('Все полученные сообщения', async (ctx) => {
   } else {
     for (const message of messages) {
       const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${message.id}`);
-      const userInfo = `Сообщение от ${message.userId}`;
+      const userInfo = `Сообщение от ${message.first_name} (@${message.username}, ID: ${message.userId})`;
+
+      if (message.message) {
+        await ctx.reply(`${userInfo}: ${message.message}`, { reply_markup: inlineKeyboard });
+      } else {
+        const mediaType = message.media_type;
+        if (mediaType === 'photo') {
+          await ctx.api.sendPhoto(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'video') {
+          await ctx.api.sendVideo(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'document') {
+          await ctx.api.sendDocument(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'audio') {
+          await ctx.api.sendAudio(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'voice') {
+          await ctx.api.sendVoice(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        } else if (mediaType === 'video_note') {
+          await ctx.api.sendVideoNote(ctx.chat.id, message.media_id, {
+            caption: userInfo,
+            reply_markup: inlineKeyboard
+          });
+        }
+      }
+    }
+  }
+});
+
+bot.hears('Сообщения без ответа', async (ctx) => {
+  if (!isAdmin(ctx.from.id, process.env.ADMIN_ID)) return;
+
+  const messages = await getMessages(db, 0);  // Получаем только сообщения без ответа
+
+  if (messages.length === 0) {
+    await ctx.reply('Сообщений без ответа нет.');
+  } else {
+    for (const message of messages) {
+      const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${message.id}`);
+      const userInfo = `Сообщение от ${message.first_name} (@${message.username}, ID: ${message.userId})`;
 
       if (message.message) {
         await ctx.reply(`${userInfo}: ${message.message}`, { reply_markup: inlineKeyboard });
@@ -292,9 +361,9 @@ bot.on('message', async (ctx) => {
   console.log(`fromId: ${fromId}, authorId: ${authorId}`);
 
   if (fromId === authorId && ctx.session.replyToUser) {
-    const targetMessageId = ctx.session.replyToMessageId;  // Получаем идентификатор сообщения
+    const targetMessageId = ctx.session.replyToMessageId;
 
-    await db.run(`UPDATE messages SET replied = 1 WHERE id = ?`, [targetMessageId]);  // Обновляем сообщение как отвеченное
+    await db.run(`UPDATE messages SET replied = 1 WHERE id = ?`, [targetMessageId]);
     await ctx.api.sendMessage(ctx.session.replyToUser, 'На ваше сообщение получен ответ от админа канала.');
 
     if (ctx.message.text) {
@@ -316,9 +385,8 @@ bot.on('message', async (ctx) => {
 
     await ctx.reply('Ответ направлен.');
     ctx.session.replyToUser = undefined;
-    ctx.session.replyToMessageId = undefined;  // Сбрасываем идентификатор сообщения
+    ctx.session.replyToMessageId = undefined;
 
-    // Уменьшаем счетчик только если он больше 0
     if (unreadMessagesCount > 0) {
       unreadMessagesCount--;
     }
@@ -331,7 +399,8 @@ bot.on('message', async (ctx) => {
     let mediaId = '';
 
     if (ctx.message.text) {
-      await db.run(`INSERT INTO messages (userId, message) VALUES (?, ?)`, [ctx.from.id, ctx.message.text]);
+      await db.run(`INSERT INTO messages (userId, message, first_name, username) VALUES (?, ?, ?, ?)`, 
+                   [ctx.from.id, ctx.message.text, ctx.from.first_name, ctx.from.username]);
     } else {
       if (ctx.message.photo) {
         const photo = ctx.message.photo.pop();
@@ -354,13 +423,13 @@ bot.on('message', async (ctx) => {
         mediaId = ctx.message.video_note.file_id;
       }
 
-      await db.run(`INSERT INTO messages (userId, media_type, media_id) VALUES (?, ?, ?)`, [ctx.from.id, mediaType, mediaId]);
+      await db.run(`INSERT INTO messages (userId, media_type, media_id, first_name, username) VALUES (?, ?, ?, ?, ?)`,
+                   [ctx.from.id, mediaType, mediaId, ctx.from.first_name, ctx.from.username]);
     }
 
     await ctx.reply('Ваше сообщение успешно отправлено автору бота');
     suggestionClicked[fromId] = false;
 
-    // Увеличиваем счетчик и отправляем уведомление админу
     unreadMessagesCount++;
     console.log(`Admin notified, new unreadMessagesCount: ${unreadMessagesCount}`);
     await ctx.api.sendMessage(authorId, `Вам пришло сообщение. Неотвеченных сообщений: ${unreadMessagesCount}`);
