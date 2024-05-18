@@ -302,58 +302,6 @@ bot.hears('Сообщения без ответа', async (ctx) => {
   }
 });
 
-bot.hears('Сообщения без ответа', async (ctx) => {
-  if (!isAdmin(ctx.from.id, process.env.ADMIN_ID)) return;
-
-  const messages = await getMessages(db, 0);  // Получаем только сообщения без ответа
-
-  if (messages.length === 0) {
-    await ctx.reply('Сообщений без ответа нет.');
-  } else {
-    for (const message of messages) {
-      const inlineKeyboard = new InlineKeyboard().text('Ответить', `reply-${message.id}`);
-      const userInfo = `Сообщение от ${message.userId}`;
-
-      if (message.message) {
-        await ctx.reply(`${userInfo}: ${message.message}`, { reply_markup: inlineKeyboard });
-      } else {
-        const mediaType = message.media_type;
-        if (mediaType === 'photo') {
-          await ctx.api.sendPhoto(ctx.chat.id, message.media_id, {
-            caption: userInfo,
-            reply_markup: inlineKeyboard
-          });
-        } else if (mediaType === 'video') {
-          await ctx.api.sendVideo(ctx.chat.id, message.media_id, {
-            caption: userInfo,
-            reply_markup: inlineKeyboard
-          });
-        } else if (mediaType === 'document') {
-          await ctx.api.sendDocument(ctx.chat.id, message.media_id, {
-            caption: userInfo,
-            reply_markup: inlineKeyboard
-          });
-        } else if (mediaType === 'audio') {
-          await ctx.api.sendAudio(ctx.chat.id, message.media_id, {
-            caption: userInfo,
-            reply_markup: inlineKeyboard
-          });
-        } else if (mediaType === 'voice') {
-          await ctx.api.sendVoice(ctx.chat.id, message.media_id, {
-            caption: userInfo,
-            reply_markup: inlineKeyboard
-          });
-        } else if (mediaType === 'video_note') {
-          await ctx.api.sendVideoNote(ctx.chat.id, message.media_id, {
-            caption: userInfo,
-            reply_markup: inlineKeyboard
-          });
-        }
-      }
-    }
-  }
-});
-
 bot.on('message', async (ctx) => {
   const authorId = process.env.ADMIN_ID;
   const fromId = ctx.from.id.toString();
