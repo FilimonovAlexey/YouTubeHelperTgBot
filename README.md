@@ -12,9 +12,11 @@
 Есть возможность получения статистики об использовании бота, если вы администратор.
 
 ## Технологии
-![JavaScript](https://img.shields.io/badge/-JavaScript-f7df1e?logo=javaScript&logoColor=black)
-![GrammyJS](https://img.shields.io/badge/-grammyjs-61daf8?logo=javaScript&logoColor=black)
-![TelegramAPI](https://img.shields.io/badge/-Telegram-99d6f8?logo=Telegram&logoColor=black)
+- **Node.js**: Среда выполнения для исполнения JavaScript-кода.
+- **Grammy.js**: Фреймворк для создания Телеграм-ботов.
+- **SQLite**: База данных для хранения взаимодействий пользователей и других данных.
+- **dotenv**: Для управления переменными окружения.
+- **Winston**: Для логирования активности бота.
 
 ## Демо бота
 Обзор возможностей бота и инструкция по настройке - [Смотреть на YouTube](https://youtu.be/G1GCEgfwyyY)  
