@@ -8,15 +8,12 @@ const { logger } = require('./utils/logger');
 const { updateUserData, recordUserInteraction, recordSocialNetworkRequest, recordPromoCodeRequest, isAdmin, createKeyboard, getUsageStats, getMessages } = require('./utils/helpers');
 const { socialNetworks, promoCodes } = require('./utils/buttons');
 
-// Создание экземпляра бота
 const bot = new Bot(process.env.BOT_API_KEY);
 
-// Настройка сессии с использованием внутреннего хранилища
 bot.use(session({
   initial: () => ({})
 }));
 
-// Функция для создания таблиц
 async function createTables(db) {
   await db.exec(`CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY,
@@ -59,12 +56,10 @@ async function createTables(db) {
   logger.info('Tables created or already exist');
 }
 
-// Подключение к базе данных SQLite
 let db;
 (async () => {
   const dbPath = './userData.db';
 
-  // Проверка на существование файла базы данных
   const dbExists = fs.existsSync(dbPath);
 
   db = await open({
@@ -72,7 +67,6 @@ let db;
     driver: sqlite3.Database
   });
 
-  // Если базы данных не существует, создаем таблицы
   if (!dbExists) {
     await createTables(db);
   }
@@ -80,7 +74,6 @@ let db;
   logger.info('Database initialized and connection established');
 })();
 
-// Обработчики команд
 bot.command('start', async (ctx) => {
   logger.info(`User ${ctx.from.id} started the bot`);
   await updateUserData(db, ctx.from.id);
@@ -124,13 +117,11 @@ bot.command('admin', async (ctx) => {
   }
 });
 
-// Обработка взаимодействий с ботом
 bot.use(async (ctx, next) => {
   await recordUserInteraction(db, ctx.from.id);
   return next();
 });
 
-// Функция для обработки нажатий на кнопки
 function handleButtonClicks(items, recordRequest) {
   items.forEach(item => {
     bot.hears(item.name, async (ctx) => {
@@ -253,7 +244,7 @@ bot.hears('Все полученные сообщения', async (ctx) => {
 bot.hears('Сообщения без ответа', async (ctx) => {
   if (!isAdmin(ctx.from.id, process.env.ADMIN_ID)) return;
 
-  const messages = await getMessages(db, 0);  // Получаем только сообщения без ответа
+  const messages = await getMessages(db, 0);
 
   if (messages.length === 0) {
     await ctx.reply('Сообщений без ответа нет.');
@@ -401,7 +392,7 @@ bot.callbackQuery(/^reply-(\d+)$/, async (ctx) => {
 
   if (targetMessage) {
     ctx.session.replyToUser = targetMessage.userId;
-    ctx.session.replyToMessageId = targetMessageId;  // Устанавливаем идентификатор сообщения
+    ctx.session.replyToMessageId = targetMessageId;
     await ctx.answerCallbackQuery('Вы можете ответить текстом, аудио, видео или фото.');
   } else {
     await ctx.answerCallbackQuery('Сообщение не найдено.', { show_alert: true });
