@@ -93,5 +93,3 @@ pm2 start index.js
 ## Authors
 
 - [@FilimonovAlexey](https://github.com/FilimonovAlexey)
-
-ТЕСТ
